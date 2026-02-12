@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "playerindicatorplus",
+  "version": "${version}",
+  "name": "PlayerIndicatorPlus",
+  "description": "A mod that displays player health, armor, and equipment information.",
+  "authors": [
+    "Ciocolata47"
+  ],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/PlayerIndicatorPlus",
+    "sources": "https://github.com/CIOCOLATA47/PlayerIndicatorPlus",
+    "issues": "https://github.com/CIOCOLATA47/PlayerIndicatorPlus/issues"
+  },
+  "license": "MIT",
+  "icon": "icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "me.cioco.playerindicatorplus.Main"
+    ]
+  },
+  "custom": {
+    "modmenu": {
+      "links": {
+        "modmenu.kofi": "https://ko-fi.com/ciocolata47"
+      }
+    }
+  },
+  "mixins": [
+    "playerindicatorplus.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": ">=1.21.11"
+  }
+}
