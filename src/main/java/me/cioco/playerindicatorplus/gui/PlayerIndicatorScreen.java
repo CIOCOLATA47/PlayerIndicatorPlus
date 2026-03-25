@@ -1,149 +1,303 @@
 package me.cioco.playerindicatorplus.gui;
 
+import me.cioco.playerindicatorplus.Main;
 import me.cioco.playerindicatorplus.config.PlayerIndicatorConfig;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.tooltip.Tooltip;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class PlayerIndicatorScreen extends Screen {
 
+    private static final int SPACING_Y   = 24;
+    private static final int SECTION_GAP = 35;
+    private static final int TITLE_HEIGHT = 20;
+
     private final Screen parent;
     private final PlayerIndicatorConfig config = new PlayerIndicatorConfig();
+    private final List<AbstractWidget> scrollableWidgets = new ArrayList<>();
 
-    private int healthY;
-    private int armorY;
-    private int equipmentY;
-    private int infoY;
+    private int scrollOffset = 0;
+    private int maxScroll;
+    private int contentHeight;
+    private Button doneButton;
+    private Button globalToggleButton;
+
+    private final int[] sectionY    = new int[4];
+    private final int[] sectionRows = new int[4];
 
     public PlayerIndicatorScreen(Screen parent) {
-        super(Text.literal("PlayerIndicatorPlus Configuration"));
+        super(Component.literal("PlayerIndicatorPlus Configuration"));
         this.parent = parent;
     }
 
     @Override
     protected void init() {
-        int centerX = this.width / 2;
-        int rowSpacing = 24;
-        int sectionPadding = 15;
+        this.clearWidgets();
+        this.scrollableWidgets.clear();
 
-        this.healthY = 35;
-        this.armorY = healthY + (rowSpacing * 4) + sectionPadding;
-        this.equipmentY = armorY + (rowSpacing * 3) + sectionPadding;
-        this.infoY = equipmentY + (rowSpacing * 2) + sectionPadding;
+        int centerX  = width / 2;
+        int leftCol  = centerX - 175;
+        int rightCol = centerX + 5;
+        int y = 70;
 
-        this.addDrawableChild(createToggleButton(centerX - 155, healthY, "Show Health", "Numeric health display.", PlayerIndicatorConfig.showHealthNumbers, val -> PlayerIndicatorConfig.showHealthNumbers = val));
-        this.addDrawableChild(createToggleButton(centerX + 5, healthY, "Show Invisibles", "Render for invisible players.", PlayerIndicatorConfig.showInvisiblePlayers, val -> PlayerIndicatorConfig.showInvisiblePlayers = val));
+        sectionY[0] = y; sectionRows[0] = 4;
+        addToggleButton(leftCol,  y, "Show Health",     "Numeric health display.",        PlayerIndicatorConfig.showHealthNumbers,    v -> PlayerIndicatorConfig.showHealthNumbers = v);
+        addToggleButton(rightCol, y, "Show Invisibles", "Render for invisible players.",  PlayerIndicatorConfig.showInvisiblePlayers, v -> PlayerIndicatorConfig.showInvisiblePlayers = v);
+        y += SPACING_Y;
+        addSlider(leftCol,  y, 170, "Size",       PlayerIndicatorConfig.healthTextSize,       0.01f, 0.05f, v -> PlayerIndicatorConfig.healthTextSize = v);
+        addSlider(rightCol, y, 170, "Range",      PlayerIndicatorConfig.healthVisibilityRange, 16f,  128f,  v -> PlayerIndicatorConfig.healthVisibilityRange = v);
+        y += SPACING_Y;
+        addSlider(leftCol,  y, 170, "Height",     PlayerIndicatorConfig.heightAboveHead,       0.2f,  2.0f, v -> PlayerIndicatorConfig.heightAboveHead = v);
+        addSlider(rightCol, y, 170, "Hue",        PlayerIndicatorConfig.healthTextHue,         0f,  360f,   v -> PlayerIndicatorConfig.healthTextHue = v);
+        y += SPACING_Y;
+        addSlider(rightCol, y, 170, "Brightness", PlayerIndicatorConfig.healthTextBrightness,  0f,   1f,    v -> PlayerIndicatorConfig.healthTextBrightness = v);
+        y += SPACING_Y + SECTION_GAP;
 
-        this.addDrawableChild(new GenericSlider(centerX - 155, healthY + rowSpacing, 150, 20, "Size", PlayerIndicatorConfig.healthTextSize, 0.01F, 0.05F, val -> PlayerIndicatorConfig.healthTextSize = val));
-        this.addDrawableChild(new GenericSlider(centerX + 5, healthY + rowSpacing, 150, 20, "Range", PlayerIndicatorConfig.healthVisibilityRange, 16F, 128F, val -> PlayerIndicatorConfig.healthVisibilityRange = val));
+        sectionY[1] = y; sectionRows[1] = 3;
+        addToggleButton(leftCol,  y, "Show Percent", "Armor durability percentage.", PlayerIndicatorConfig.showArmorPercentages, v -> PlayerIndicatorConfig.showArmorPercentages = v);
+        addToggleButton(rightCol, y, "Show Text",    "Armor type names.",            PlayerIndicatorConfig.showArmorText,        v -> PlayerIndicatorConfig.showArmorText = v);
+        y += SPACING_Y;
+        addSlider(leftCol,  y, 170, "Height",    PlayerIndicatorConfig.armorheightAboveHead, 0.2f, 2.0f,  v -> PlayerIndicatorConfig.armorheightAboveHead = v);
+        addSlider(rightCol, y, 170, "Text Size", PlayerIndicatorConfig.armorTextSize,        0.01f, 0.05f, v -> PlayerIndicatorConfig.armorTextSize = v);
+        y += SPACING_Y;
+        addSlider(leftCol,  y, 170, "Hue",        PlayerIndicatorConfig.armorTextHue,        0f, 360f, v -> PlayerIndicatorConfig.armorTextHue = v);
+        addSlider(rightCol, y, 170, "Saturation", PlayerIndicatorConfig.armorTextSaturation, 0f, 1f,   v -> PlayerIndicatorConfig.armorTextSaturation = v);
+        y += SPACING_Y + SECTION_GAP;
 
-        this.addDrawableChild(new GenericSlider(centerX - 155, healthY + rowSpacing * 2, 150, 20, "Height", PlayerIndicatorConfig.heightAboveHead, 0.2F, 2.0F, val -> PlayerIndicatorConfig.heightAboveHead = val));
-        this.addDrawableChild(new GenericSlider(centerX + 5, healthY + rowSpacing * 2, 150, 20, "Hue", PlayerIndicatorConfig.healthTextHue, 0F, 360F, val -> PlayerIndicatorConfig.healthTextHue = val));
+        sectionY[2] = y; sectionRows[2] = 2;
+        addToggleButton(leftCol,  y, "Main Hand", "Show held item.",    PlayerIndicatorConfig.showMainHand, v -> PlayerIndicatorConfig.showMainHand = v);
+        addToggleButton(rightCol, y, "Off Hand",  "Show offhand item.", PlayerIndicatorConfig.showOffHand,  v -> PlayerIndicatorConfig.showOffHand = v);
+        y += SPACING_Y;
+        addSlider(leftCol,  y, 170, "Height",    PlayerIndicatorConfig.equipmentHeightAboveHead, 0.2f, 2.0f,  v -> PlayerIndicatorConfig.equipmentHeightAboveHead = v);
+        addSlider(rightCol, y, 170, "Text Size", PlayerIndicatorConfig.equipmentTextSize,        0.01f, 0.05f, v -> PlayerIndicatorConfig.equipmentTextSize = v);
+        y += SPACING_Y + SECTION_GAP;
 
-        this.addDrawableChild(new GenericSlider(centerX + 5, healthY + rowSpacing * 3, 150, 20, "Brightness", PlayerIndicatorConfig.healthTextBrightness, 0F, 1F, val -> PlayerIndicatorConfig.healthTextBrightness = val));
+        sectionY[3] = y; sectionRows[3] = 4;
+        addToggleButton(leftCol,  y, "Show Ping",     "Latency display.",     PlayerIndicatorConfig.showPing,     v -> PlayerIndicatorConfig.showPing = v);
+        addToggleButton(rightCol, y, "Show Distance", "Distance in blocks.",  PlayerIndicatorConfig.showDistance, v -> PlayerIndicatorConfig.showDistance = v);
+        y += SPACING_Y;
+        addSlider(leftCol,  y, 170, "Height",    PlayerIndicatorConfig.infoHeightAboveHead, 0.1f, 2.0f,  v -> PlayerIndicatorConfig.infoHeightAboveHead = v);
+        addSlider(rightCol, y, 170, "Hue",       PlayerIndicatorConfig.infoTextHue,         0f,  360f,   v -> PlayerIndicatorConfig.infoTextHue = v);
+        y += SPACING_Y;
+        addSlider(leftCol,  y, 170, "Text Size",  PlayerIndicatorConfig.infoTextSize,        0.01f, 0.05f, v -> PlayerIndicatorConfig.infoTextSize = v);
+        addSlider(rightCol, y, 170, "Saturation", PlayerIndicatorConfig.infoTextSaturation,  0f,   1f,    v -> PlayerIndicatorConfig.infoTextSaturation = v);
+        y += SPACING_Y;
+        addSlider(rightCol, y, 170, "Brightness", PlayerIndicatorConfig.infoTextBrightness,  0f,   1f,    v -> PlayerIndicatorConfig.infoTextBrightness = v);
+        y += SPACING_Y + SECTION_GAP;
 
-        this.addDrawableChild(createToggleButton(centerX - 155, armorY, "Show Percent", "Armor durability percentage.", PlayerIndicatorConfig.showArmorPercentages, val -> PlayerIndicatorConfig.showArmorPercentages = val));
-        this.addDrawableChild(createToggleButton(centerX + 5, armorY, "Show Text", "Armor type names.", PlayerIndicatorConfig.showArmorText, val -> PlayerIndicatorConfig.showArmorText = val));
+        contentHeight = y + 40;
+        maxScroll = Math.max(0, contentHeight - (height - 90));
+        if (scrollOffset > maxScroll) scrollOffset = maxScroll;
 
-        this.addDrawableChild(new GenericSlider(centerX - 155, armorY + rowSpacing, 150, 20, "Height", PlayerIndicatorConfig.armorheightAboveHead, 0.2F, 2.0F, val -> PlayerIndicatorConfig.armorheightAboveHead = val));
-        this.addDrawableChild(new GenericSlider(centerX + 5, armorY + rowSpacing, 150, 20, "Text Size", PlayerIndicatorConfig.armorTextSize, 0.01F, 0.05F, val -> PlayerIndicatorConfig.armorTextSize = val));
+        int centerBtnX = centerX - 100;
 
-        this.addDrawableChild(new GenericSlider(centerX - 155, armorY + rowSpacing * 2, 150, 20, "Hue", PlayerIndicatorConfig.armorTextHue, 0F, 360F, val -> PlayerIndicatorConfig.armorTextHue = val));
-        this.addDrawableChild(new GenericSlider(centerX + 5, armorY + rowSpacing * 2, 150, 20, "Saturation", PlayerIndicatorConfig.armorTextSaturation, 0F, 1F, val -> PlayerIndicatorConfig.armorTextSaturation = val));
+        globalToggleButton = Button.builder(getGlobalToggleText(), b -> {
+            Main.toggled = !Main.toggled;
+            b.setMessage(getGlobalToggleText());
+        }).bounds(centerBtnX, height - 60, 200, 20).build();
+        addRenderableWidget(globalToggleButton);
 
-        this.addDrawableChild(createToggleButton(centerX - 155, equipmentY, "Main Hand", "Show held item.", PlayerIndicatorConfig.showMainHand, val -> PlayerIndicatorConfig.showMainHand = val));
-        this.addDrawableChild(createToggleButton(centerX + 5, equipmentY, "Off Hand", "Show offhand item.", PlayerIndicatorConfig.showOffHand, val -> PlayerIndicatorConfig.showOffHand = val));
+        doneButton = Button.builder(
+                Component.literal("SAVE & EXIT").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD),
+                b -> this.onClose()
+        ).bounds(centerBtnX, height - 30, 200, 20).build();
+        addRenderableWidget(doneButton);
 
-        this.addDrawableChild(new GenericSlider(centerX - 155, equipmentY + rowSpacing, 150, 20, "Height", PlayerIndicatorConfig.equipmentHeightAboveHead, 0.2F, 2.0F, val -> PlayerIndicatorConfig.equipmentHeightAboveHead = val));
-        this.addDrawableChild(new GenericSlider(centerX + 5, equipmentY + rowSpacing, 150, 20, "Text Size", PlayerIndicatorConfig.equipmentTextSize, 0.01F, 0.05F, val -> PlayerIndicatorConfig.equipmentTextSize = val));
-
-        this.addDrawableChild(createToggleButton(centerX - 155, infoY, "Show Ping", "Latency display.", PlayerIndicatorConfig.showPing, val -> PlayerIndicatorConfig.showPing = val));
-        this.addDrawableChild(createToggleButton(centerX + 5, infoY, "Show Distance", "Distance in blocks.", PlayerIndicatorConfig.showDistance, val -> PlayerIndicatorConfig.showDistance = val));
-
-        this.addDrawableChild(new GenericSlider(centerX - 155, infoY + rowSpacing, 150, 20, "Height", PlayerIndicatorConfig.infoHeightAboveHead, 0.1F, 2.0F, val -> PlayerIndicatorConfig.infoHeightAboveHead = val));
-        this.addDrawableChild(new GenericSlider(centerX + 5, infoY + rowSpacing, 150, 20, "Hue", PlayerIndicatorConfig.infoTextHue, 0F, 360F, val -> PlayerIndicatorConfig.infoTextHue = val));
-
-        this.addDrawableChild(new GenericSlider(centerX - 155, infoY + rowSpacing * 2, 150, 20, "Text Size", PlayerIndicatorConfig.infoTextSize, 0.01F, 0.05F, val -> PlayerIndicatorConfig.infoTextSize = val));
-        this.addDrawableChild(new GenericSlider(centerX + 5, infoY + rowSpacing * 2, 150, 20, "Saturation", PlayerIndicatorConfig.infoTextSaturation, 0F, 1F, val -> PlayerIndicatorConfig.infoTextSaturation = val));
-
-        this.addDrawableChild(new GenericSlider(centerX + 5, infoY + rowSpacing * 3, 150, 20, "Brightness", PlayerIndicatorConfig.infoTextBrightness, 0F, 1F, val -> PlayerIndicatorConfig.infoTextBrightness = val));
+        for (AbstractWidget widget : scrollableWidgets) {
+            widget.setY(widget.getY() - scrollOffset);
+        }
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        this.renderInGameBackground(context);
+    public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float delta) {
+        ctx.fillGradient(0, 0, width, height, 0xC0101010, 0xD0101010);
 
-        int centerX = this.width / 2;
-        int pW = 330;
+        int cx     = width / 2;
+        int panelW = 360;
+        int panelX = cx - (panelW / 2);
 
-        drawStyledPanel(context, centerX - 165, healthY - 15, pW, 110);
-        drawStyledPanel(context, centerX - 165, armorY - 15, pW, 85);
-        drawStyledPanel(context, centerX - 165, equipmentY - 15, pW, 60);
-        drawStyledPanel(context, centerX - 165, infoY - 15, pW, 110);
+        ctx.centeredText(font,
+                Component.literal("PLAYER INDICATOR+").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD, ChatFormatting.UNDERLINE),
+                cx, 15, 0xFFFFFFFF);
 
-        super.render(context, mouseX, mouseY, delta);
+        ctx.enableScissor(0, 40, width, height - 70);
 
-        context.drawCenteredTextWithShadow(this.textRenderer, "§6§lPLAYER INDICATOR+", centerX, 10, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§b§l> §fHealth", centerX - 158, healthY - 10, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§b§l> §fArmor", centerX - 158, armorY - 10, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§b§l> §fEquipment", centerX - 158, equipmentY - 10, 0xFFFFFFFF);
-        context.drawTextWithShadow(this.textRenderer, "§b§l> §fConnection & Info", centerX - 158, infoY - 10, 0xFFFFFFFF);
-    }
+        String[] titles = {"Health", "Armor", "Equipment", "Connection & Info"};
+        for (int i = 0; i < sectionY.length; i++) {
+            renderSectionGroup(ctx, panelX, sectionY[i] - scrollOffset, panelW, sectionRows[i], titles[i]);
+        }
 
-    private void drawStyledPanel(DrawContext context, int x, int y, int width, int height) {
-        context.fill(x, y, x + width, y + height, 0x55000000);
-        context.fill(x, y, x + 2, y + height, 0xFFFFAA00);
+        for (AbstractWidget widget : scrollableWidgets) {
+            if (widget.getY() + widget.getHeight() > 40 && widget.getY() < height - 70) {
+                widget.visible = true;
+                widget.extractRenderState(ctx, mouseX, mouseY, delta);
+            } else {
+                widget.visible = false;
+            }
+        }
+
+        ctx.disableScissor();
+
+        globalToggleButton.extractRenderState(ctx, mouseX, mouseY, delta);
+        doneButton.extractRenderState(ctx, mouseX, mouseY, delta);
+
+        drawScrollBar(ctx);
     }
 
     @Override
-    public void close() {
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (maxScroll > 0) {
+            int oldOffset = scrollOffset;
+            scrollOffset = (int) Math.max(0, Math.min(maxScroll, scrollOffset - (verticalAmount * 25)));
+            int diff = oldOffset - scrollOffset;
+            for (AbstractWidget widget : scrollableWidgets) {
+                widget.setY(widget.getY() + diff);
+            }
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
+
+    private void drawScrollBar(GuiGraphicsExtractor ctx) {
+        if (maxScroll <= 0) return;
+        int trackX      = width - 6;
+        int trackY      = 40;
+        int trackHeight = height - 110;
+        int thumbHeight = Math.max(20, (int) ((float) trackHeight * (trackHeight / (float) contentHeight)));
+        int thumbY      = trackY + (int) ((trackHeight - thumbHeight) * ((float) scrollOffset / maxScroll));
+        ctx.fill(trackX, trackY, width - 2, trackY + trackHeight, 0x40000000);
+        ctx.fill(trackX, thumbY, width - 2, thumbY + thumbHeight, 0xFFFFAA00);
+    }
+
+    private void addToggleButton(int x, int y, String label, String desc, boolean val, Consumer<Boolean> action) {
+        Button btn = Button.builder(getToggleText(label, val), b -> {
+            boolean currentlyOn = b.getMessage().getString().contains("ON");
+            action.accept(!currentlyOn);
+            b.setMessage(getToggleText(label, !currentlyOn));
+        }).bounds(x, y, 170, 20).tooltip(Tooltip.create(Component.literal("§e" + desc))).build();
+        scrollableWidgets.add(btn);
+        addRenderableWidget(btn);
+    }
+
+    private void addSlider(int x, int y, int w, String label, float cur, float min, float max, Consumer<Float> action) {
+        CompoundSlider compound = new CompoundSlider(x, y, w, 20, label, cur, min, max, action);
+        scrollableWidgets.add(compound.slider);
+        scrollableWidgets.add(compound.textField);
+        addRenderableWidget(compound.slider);
+        addRenderableWidget(compound.textField);
+    }
+
+    private void renderSectionGroup(GuiGraphicsExtractor ctx, int x, int y, int w, int rows, String title) {
+        int contentH = rows * SPACING_Y;
+        drawStyledPanel(ctx, x, y - TITLE_HEIGHT - 5, w, contentH + TITLE_HEIGHT + 10);
+        ctx.text(font, "§6§l» §f" + title, x + 8, y - TITLE_HEIGHT + 1, 0xFFFFFFFF);
+        ctx.fill(x + 5, y - 6, x + w - 5, y - 5, 0x80FFAA00);
+    }
+
+    private void drawStyledPanel(GuiGraphicsExtractor ctx, int x, int y, int width, int height) {
+        ctx.fill(x, y, x + width, y + height, 0x90000000);
+        ctx.fill(x, y, x + 2, y + height, 0xFFFFAA00);
+        ctx.fill(x + width - 2, y, x + width, y + height, 0xFFFFAA00);
+    }
+
+    private Component getToggleText(String label, boolean value) {
+        return Component.literal(label + ": ").append(
+                value ? Component.literal("ON").withStyle(ChatFormatting.GREEN)
+                        : Component.literal("OFF").withStyle(ChatFormatting.RED)
+        );
+    }
+
+    private Component getGlobalToggleText() {
+        return Component.literal("PlayerIndicator: ").append(
+                Main.toggled ? Component.literal("Enabled").withStyle(ChatFormatting.GREEN)
+                        : Component.literal("Disabled").withStyle(ChatFormatting.RED)
+        );
+    }
+
+    public void refreshGlobalToggle() {
+        if (globalToggleButton != null) {
+            globalToggleButton.setMessage(getGlobalToggleText());
+        }
+    }
+
+    @Override
+    public void onClose() {
         config.saveConfiguration();
-        if (this.client != null) this.client.setScreen(this.parent);
+        if (minecraft != null) minecraft.setScreen(parent);
     }
 
-    private ButtonWidget createToggleButton(int x, int y, String label, String desc, boolean initVal, Consumer<Boolean> action) {
-        return ButtonWidget.builder(getToggleText(label, initVal), button -> {
-                    boolean newVal = !button.getMessage().getString().contains("ON");
-                    action.accept(newVal);
-                    button.setMessage(getToggleText(label, newVal));
-                }).dimensions(x, y, 150, 20)
-                .tooltip(Tooltip.of(Text.literal(desc)))
-                .build();
+    private class CompoundSlider {
+        public final CustomSlider slider;
+        public final EditBox textField;
+        private boolean isUpdating = false;
+
+        public CompoundSlider(int x, int y, int w, int h, String label, float cur, float min, float max, Consumer<Float> action) {
+            int textWidth = 45;
+            this.textField = new EditBox(font, x + w - textWidth, y, textWidth, h, Component.empty());
+            this.textField.setValue(String.format("%.2f", cur));
+
+            this.slider = new CustomSlider(x, y, w - textWidth - 2, h, label, cur, min, max, val -> {
+                if (!isUpdating) {
+                    isUpdating = true;
+                    textField.setValue(String.format("%.2f", val));
+                    action.accept(val);
+                    isUpdating = false;
+                }
+            });
+
+            this.textField.setResponder(text -> {
+                if (isUpdating) return;
+                try {
+                    float val = Float.parseFloat(text);
+                    isUpdating = true;
+                    double sliderPos = (val - min) / (max - min);
+                    slider.forceValue(Math.max(0.0, Math.min(1.0, sliderPos)));
+                    action.accept(val);
+                    isUpdating = false;
+                } catch (NumberFormatException ignored) {}
+            });
+        }
     }
 
-    private Text getToggleText(String label, boolean value) {
-        return Text.literal(label + ": ")
-                .append(value ? Text.literal("ON").formatted(Formatting.GREEN) : Text.literal("OFF").formatted(Formatting.RED));
-    }
-
-    private static class GenericSlider extends SliderWidget {
+    private class CustomSlider extends AbstractSliderButton {
         private final String label;
         private final float min, max;
-        private final Consumer<Float> updateAction;
+        private final Consumer<Float> callback;
 
-        public GenericSlider(int x, int y, int w, int h, String label, float cur, float min, float max, Consumer<Float> action) {
-            super(x, y, w, h, Text.empty(), (cur - min) / (max - min));
-            this.label = label;
-            this.min = min;
-            this.max = max;
-            this.updateAction = action;
-            updateMessage();
+        public CustomSlider(int x, int y, int w, int h, String label, float cur, float min, float max, Consumer<Float> callback) {
+            super(x, y, w, h, Component.empty(), (double) (cur - min) / (max - min));
+            this.label    = label;
+            this.min      = min;
+            this.max      = max;
+            this.callback = callback;
+            this.updateMessage();
         }
 
-        @Override protected void updateMessage() {
-            float val = min + (float) (this.value * (max - min));
-            this.setMessage(Text.literal(label + ": §e" + String.format("%.2f", val)));
+        public void forceValue(double val) {
+            this.value = val;
+            this.updateMessage();
         }
 
-        @Override protected void applyValue() {
+        @Override
+        protected void updateMessage() {
             float val = min + (float) (this.value * (max - min));
-            updateAction.accept(val);
+            setMessage(Component.literal(label + ": §e" + String.format("%.2f", val)));
+        }
+
+        @Override
+        protected void applyValue() {
+            float val = min + (float) (this.value * (max - min));
+            callback.accept(val);
         }
     }
 }
