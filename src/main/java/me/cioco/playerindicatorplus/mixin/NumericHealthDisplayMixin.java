@@ -49,7 +49,7 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
                                               net.minecraft.client.renderer.SubmitNodeCollector submitNodeCollector,
                                               net.minecraft.client.renderer.state.level.CameraRenderState camera,
                                               CallbackInfo ci) {
-        if (!Main.toggled) return;
+        if (!PlayerIndicatorConfig.toggled) return;
 
         Entity cached = renderStateCache.get(renderState);
         if (!(cached instanceof Player player)) return;

@@ -16,6 +16,8 @@ public class PlayerIndicatorConfig {
     public static final String CONFIG_FILE = "playerindicatorplus-config.properties";
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerIndicatorConfig.class);
 
+    public static boolean toggled = false;
+
     public static boolean showHealthNumbers = true;
     public static float healthTextSize = 0.025F;
     public static float healthVisibilityRange = 64.0F;
@@ -54,6 +56,8 @@ public class PlayerIndicatorConfig {
             Files.createDirectories(configPath.getParent());
             try (OutputStream output = Files.newOutputStream(configPath)) {
                 Properties props = new Properties();
+
+                props.setProperty("toggled", String.valueOf(toggled));
 
                 props.setProperty("showHealthNumbers", String.valueOf(showHealthNumbers));
                 props.setProperty("healthTextSize", String.valueOf(healthTextSize));
@@ -101,6 +105,8 @@ public class PlayerIndicatorConfig {
         try (InputStream input = Files.newInputStream(configPath)) {
             Properties props = new Properties();
             props.load(input);
+
+            toggled = Boolean.parseBoolean(props.getProperty("toggled", "false"));
 
             showHealthNumbers = Boolean.parseBoolean(props.getProperty("showHealthNumbers", "true"));
             healthTextSize = Float.parseFloat(props.getProperty("healthTextSize", "0.025"));

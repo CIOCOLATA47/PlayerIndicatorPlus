@@ -104,7 +104,7 @@ public class PlayerIndicatorScreen extends Screen {
         int centerBtnX = centerX - 100;
 
         globalToggleButton = Button.builder(getGlobalToggleText(), b -> {
-            Main.toggled = !Main.toggled;
+            PlayerIndicatorConfig.toggled = !PlayerIndicatorConfig.toggled;
             b.setMessage(getGlobalToggleText());
         }).bounds(centerBtnX, height - 60, 200, 20).build();
         addRenderableWidget(globalToggleButton);
@@ -221,7 +221,7 @@ public class PlayerIndicatorScreen extends Screen {
 
     private Component getGlobalToggleText() {
         return Component.literal("PlayerIndicator: ").append(
-                Main.toggled ? Component.literal("Enabled").withStyle(ChatFormatting.GREEN)
+                PlayerIndicatorConfig.toggled ? Component.literal("Enabled").withStyle(ChatFormatting.GREEN)
                         : Component.literal("Disabled").withStyle(ChatFormatting.RED)
         );
     }

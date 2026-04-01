@@ -21,8 +21,6 @@ public class Main implements ModInitializer {
     public static KeyMapping toggleKeyBinding;
     public static KeyMapping guiKeyBinding;
 
-    public static boolean toggled = false;
-
     @Override
     public void onInitialize() {
         config.loadConfiguration();
@@ -45,13 +43,16 @@ public class Main implements ModInitializer {
             if (client.player == null) return;
 
             if (toggleKeyBinding.consumeClick()) {
-                toggled = !toggled;
+                PlayerIndicatorConfig.toggled = !PlayerIndicatorConfig.toggled;
+                config.saveConfiguration();
+
                 if (client.screen instanceof PlayerIndicatorScreen screen) {
                     screen.refreshGlobalToggle();
                 }
+
                 Component status = Component.literal("PlayerIndicator: ")
-                        .append(Component.literal(toggled ? "Enabled" : "Disabled")
-                                .withStyle(toggled ? ChatFormatting.GREEN : ChatFormatting.RED));
+                        .append(Component.literal(PlayerIndicatorConfig.toggled ? "Enabled" : "Disabled")
+                                .withStyle(PlayerIndicatorConfig.toggled ? ChatFormatting.GREEN : ChatFormatting.RED));
                 client.player.sendSystemMessage(status);
             }
 
