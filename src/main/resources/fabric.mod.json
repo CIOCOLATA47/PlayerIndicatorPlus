@@ -25,7 +25,10 @@
       "links": {
         "modmenu.kofi": "https://ko-fi.com/ciocolata47"
       }
-    }
+    },
+    "badoptimizations:incompatibilities": [
+      "enable_entity_renderer_caching"
+    ]
   },
   "mixins": [
     "playerindicatorplus.mixins.json"

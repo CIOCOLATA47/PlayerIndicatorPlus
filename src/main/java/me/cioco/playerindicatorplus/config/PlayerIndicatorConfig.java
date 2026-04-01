@@ -23,6 +23,7 @@ public class PlayerIndicatorConfig {
     public static float healthTextHue = 0f;
     public static float healthTextSaturation = 1f;
     public static float healthTextBrightness = 1f;
+    public static boolean useTabListHealth = true;
 
     public static boolean showArmorPercentages = true;
     public static boolean showArmorText = true;
@@ -61,6 +62,7 @@ public class PlayerIndicatorConfig {
                 props.setProperty("healthTextHue", String.valueOf(healthTextHue));
                 props.setProperty("healthTextSaturation", String.valueOf(healthTextSaturation));
                 props.setProperty("healthTextBrightness", String.valueOf(healthTextBrightness));
+                props.setProperty("useTabListHealth", String.valueOf(useTabListHealth));
 
                 props.setProperty("showArmorPercentages", String.valueOf(showArmorPercentages));
                 props.setProperty("showArmorText", String.valueOf(showArmorText));
@@ -107,6 +109,7 @@ public class PlayerIndicatorConfig {
             healthTextHue = Float.parseFloat(props.getProperty("healthTextHue", "0"));
             healthTextSaturation = Float.parseFloat(props.getProperty("healthTextSaturation", "1"));
             healthTextBrightness = Float.parseFloat(props.getProperty("healthTextBrightness", "1"));
+            useTabListHealth = Boolean.parseBoolean(props.getProperty("useTabListHealth", "true"));
 
             showArmorPercentages = Boolean.parseBoolean(props.getProperty("showArmorPercentages", "true"));
             showArmorText = Boolean.parseBoolean(props.getProperty("showArmorText", "true"));

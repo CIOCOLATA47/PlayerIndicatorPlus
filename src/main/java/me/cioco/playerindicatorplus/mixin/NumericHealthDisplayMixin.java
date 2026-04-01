@@ -155,10 +155,35 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
     }
 
     @Unique
-    private void displayHealthAbovePlayer(Player player, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
-        String text = player.isCreative()
-                ? "Creative"
-                : (int) Math.ceil(player.getHealth() + player.getAbsorptionAmount()) + "HP";
+    private float getTabListHealth(Player player) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return -1f;
+
+        var scoreboard = mc.level.getScoreboard();
+        var objective = scoreboard.getDisplayObjective(net.minecraft.world.scores.DisplaySlot.LIST);
+        if (objective == null) return -1f;
+
+        var score = scoreboard.getPlayerScoreInfo(player, objective);
+        if (score == null) return -1f;
+
+        return score.value();
+    }
+
+    @Unique
+    private void displayHealthAbovePlayer(Player player, PoseStack poseStack,
+                                          MultiBufferSource bufferSource, int packedLight) {
+
+        String text;
+        if (player.isCreative()) {
+            text = "Creative";
+        } else if (PlayerIndicatorConfig.useTabListHealth) {
+            float tabHealth = getTabListHealth(player);
+            text = tabHealth >= 0
+                    ? (int) Math.ceil(tabHealth) + "HP"
+                    : (int) Math.ceil(player.getHealth() + player.getAbsorptionAmount()) + "HP";
+        } else {
+            text = (int) Math.ceil(player.getHealth() + player.getAbsorptionAmount()) + "HP";
+        }
 
         renderTextAtHeight(text, player,
                 PlayerIndicatorConfig.heightAboveHead,

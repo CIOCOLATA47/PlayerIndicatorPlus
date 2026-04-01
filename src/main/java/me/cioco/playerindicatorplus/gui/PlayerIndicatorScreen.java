@@ -50,7 +50,7 @@ public class PlayerIndicatorScreen extends Screen {
         int rightCol = centerX + 5;
         int y = 70;
 
-        sectionY[0] = y; sectionRows[0] = 4;
+        sectionY[0] = y; sectionRows[0] = 5;
         addToggleButton(leftCol,  y, "Show Health",     "Numeric health display.",        PlayerIndicatorConfig.showHealthNumbers,    v -> PlayerIndicatorConfig.showHealthNumbers = v);
         addToggleButton(rightCol, y, "Show Invisibles", "Render for invisible players.",  PlayerIndicatorConfig.showInvisiblePlayers, v -> PlayerIndicatorConfig.showInvisiblePlayers = v);
         y += SPACING_Y;
@@ -61,6 +61,8 @@ public class PlayerIndicatorScreen extends Screen {
         addSlider(rightCol, y, 170, "Hue",        PlayerIndicatorConfig.healthTextHue,         0f,  360f,   v -> PlayerIndicatorConfig.healthTextHue = v);
         y += SPACING_Y;
         addSlider(rightCol, y, 170, "Brightness", PlayerIndicatorConfig.healthTextBrightness,  0f,   1f,    v -> PlayerIndicatorConfig.healthTextBrightness = v);
+        y += SPACING_Y;
+        addToggleButton(leftCol, y, "Tab Health", "Use health value from tab list (server-side).", PlayerIndicatorConfig.useTabListHealth, v -> PlayerIndicatorConfig.useTabListHealth = v);
         y += SPACING_Y + SECTION_GAP;
 
         sectionY[1] = y; sectionRows[1] = 3;
