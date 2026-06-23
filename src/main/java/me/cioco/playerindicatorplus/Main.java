@@ -46,7 +46,7 @@ public class Main implements ModInitializer {
                 PlayerIndicatorConfig.toggled = !PlayerIndicatorConfig.toggled;
                 config.saveConfiguration();
 
-                if (client.screen instanceof PlayerIndicatorScreen screen) {
+                if (client.gui.screen() instanceof PlayerIndicatorScreen screen) {
                     screen.refreshGlobalToggle();
                 }
 
@@ -57,7 +57,7 @@ public class Main implements ModInitializer {
             }
 
             if (guiKeyBinding.consumeClick()) {
-                client.setScreen(new PlayerIndicatorScreen(client.screen));
+                client.setScreenAndShow(new PlayerIndicatorScreen(client.gui.screen()));
             }
         });
     }

@@ -1,15 +1,15 @@
 package me.cioco.playerindicatorplus.mixin;
 
-import me.cioco.playerindicatorplus.Main;
 import me.cioco.playerindicatorplus.config.PlayerIndicatorConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -35,9 +35,9 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
             method = "extractRenderState(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/client/renderer/entity/state/EntityRenderState;F)V",
             at = @At("RETURN")
     )
-    private void captureEntityReference(T entity, S renderState, float partialTick, CallbackInfo ci) {
+    private void captureEntityReference(T entity, S state, float partialTicks, CallbackInfo ci) {
         if (entity instanceof Player) {
-            renderStateCache.put(renderState, entity);
+            renderStateCache.put(state, entity);
         }
     }
 
@@ -45,34 +45,33 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
             method = "submit(Lnet/minecraft/client/renderer/entity/state/EntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
             at = @At("RETURN")
     )
-    private void renderHealthArmorInfoEffects(S renderState, PoseStack poseStack,
-                                              net.minecraft.client.renderer.SubmitNodeCollector submitNodeCollector,
-                                              net.minecraft.client.renderer.state.level.CameraRenderState camera,
+    private void renderHealthArmorInfoEffects(S state, PoseStack poseStack,
+                                              SubmitNodeCollector collector,
+                                              CameraRenderState camera,
                                               CallbackInfo ci) {
         if (!PlayerIndicatorConfig.toggled) return;
 
-        Entity cached = renderStateCache.get(renderState);
+        Entity cached = renderStateCache.get(state);
         if (!(cached instanceof Player player)) return;
         if (shouldSkipRendering(player)) return;
 
-        var bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
+        int packedLight = state.lightCoords;
 
         if (PlayerIndicatorConfig.showPing || PlayerIndicatorConfig.showDistance)
-            renderInfoLine(player, poseStack, bufferSource, renderState.lightCoords);
+            renderInfoLine(player, poseStack, collector, packedLight);
 
         if (PlayerIndicatorConfig.showMainHand || PlayerIndicatorConfig.showOffHand)
-            renderEquipment(player, poseStack, bufferSource, renderState.lightCoords);
+            renderEquipment(player, poseStack, collector, packedLight);
 
         if (PlayerIndicatorConfig.showHealthNumbers)
-            displayHealthAbovePlayer(player, poseStack, bufferSource, renderState.lightCoords);
+            displayHealthAbovePlayer(player, poseStack, collector, packedLight);
 
         if (PlayerIndicatorConfig.showArmorPercentages || PlayerIndicatorConfig.showArmorText)
-            renderArmorPercentagesAbovePlayer(player, poseStack, bufferSource, renderState.lightCoords);
-
+            renderArmorPercentagesAbovePlayer(player, poseStack, collector, packedLight);
     }
 
     @Unique
-    private void renderEquipment(Player player, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
+    private void renderEquipment(Player player, PoseStack poseStack, SubmitNodeCollector collector, int packedLight) {
         StringBuilder sb = new StringBuilder();
 
         if (PlayerIndicatorConfig.showMainHand) {
@@ -83,50 +82,59 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
         if (PlayerIndicatorConfig.showOffHand) {
             ItemStack off = player.getOffhandItem();
             if (!off.isEmpty()) {
-                if (sb.length() > 0) sb.append(" | ");
+                if (!sb.isEmpty()) sb.append(" | ");
                 sb.append(off.getHoverName().getString());
             }
         }
 
-        if (sb.length() == 0) return;
+        if (sb.isEmpty()) return;
 
         renderTextAtHeight(sb.toString(), player,
                 PlayerIndicatorConfig.equipmentHeightAboveHead,
                 PlayerIndicatorConfig.equipmentTextSize,
                 60f, 1f, 1f,
-                poseStack, bufferSource, packedLight);
+                poseStack, collector, packedLight);
     }
 
     @Unique
     private void renderTextAtHeight(String text, Player player, float yOffsetValue, float size,
                                     float h, float s, float b,
-                                    PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
+                                    PoseStack poseStack, OrderedSubmitNodeCollector collector, int packedLight) {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
 
         poseStack.pushPose();
         poseStack.translate(0, player.getBbHeight() + yOffsetValue, 0);
 
-        var cam = mc.gameRenderer.getMainCamera();
+        var cam = mc.gameRenderer.mainCamera();
+
         poseStack.mulPose(Axis.YP.rotationDegrees(-cam.yRot()));
         poseStack.mulPose(Axis.XP.rotationDegrees(cam.xRot()));
         poseStack.scale(-size, -size, size);
 
         int color = 0xFF000000 | Color.HSBtoRGB(h / 360f, s, b);
+        float x = -font.width(text) / 2f;
 
-        font.drawInBatch(text,
-                -font.width(text) / 2f, 0,
-                color, false,
-                poseStack.last().pose(),
-                bufferSource,
+        var textComponent = net.minecraft.network.chat.Component.literal(text);
+        var visualOrderSequence = font.split(textComponent, Integer.MAX_VALUE).get(0);
+
+        collector.submitText(
+                poseStack,
+                x, 0f,
+                visualOrderSequence,
+                false,
                 Font.DisplayMode.SEE_THROUGH,
-                0x50000000, packedLight);
+                packedLight,
+                color,
+                0x50000000,
+                0
+        );
 
         poseStack.popPose();
     }
 
     @Unique
-    private void renderInfoLine(Player player, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
+    private void renderInfoLine(Player player, PoseStack poseStack, SubmitNodeCollector collector, int packedLight) {
         Minecraft mc = Minecraft.getInstance();
         StringBuilder info = new StringBuilder();
 
@@ -139,7 +147,7 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
             PlayerInfo entry = mc.getConnection().getPlayerInfo(player.getUUID());
             String ping = (entry != null) ? entry.getLatency() + "ms"
                     : (mc.hasSingleplayerServer() ? "Local" : "?");
-            if (info.length() > 0) info.append(" | ");
+            if (!info.isEmpty()) info.append(" | ");
             info.append(ping);
         }
 
@@ -151,7 +159,7 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
                 PlayerIndicatorConfig.infoTextHue,
                 PlayerIndicatorConfig.infoTextSaturation,
                 PlayerIndicatorConfig.infoTextBrightness,
-                poseStack, bufferSource, packedLight);
+                poseStack, collector, packedLight);
     }
 
     @Unique
@@ -171,8 +179,7 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
 
     @Unique
     private void displayHealthAbovePlayer(Player player, PoseStack poseStack,
-                                          MultiBufferSource bufferSource, int packedLight) {
-
+                                          SubmitNodeCollector collector, int packedLight) {
         String text;
         if (player.isCreative()) {
             text = "Creative";
@@ -191,11 +198,11 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
                 PlayerIndicatorConfig.healthTextHue,
                 PlayerIndicatorConfig.healthTextSaturation,
                 PlayerIndicatorConfig.healthTextBrightness,
-                poseStack, bufferSource, packedLight);
+                poseStack, collector, packedLight);
     }
 
     @Unique
-    private void renderArmorPercentagesAbovePlayer(Player player, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
+    private void renderArmorPercentagesAbovePlayer(Player player, PoseStack poseStack, SubmitNodeCollector collector, int packedLight) {
         if (!hasAnyEquippedArmor(player)) return;
 
         StringBuilder armor = new StringBuilder();
@@ -208,16 +215,16 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
             String part = "";
             if (PlayerIndicatorConfig.showArmorText) {
                 String name = stack.getItem().getDescriptionId().toLowerCase();
-                String tier = name.contains("leather") ? "L"
-                        : name.contains("chain")     ? "Ch"
-                        : name.contains("iron")      ? "I"
-                        : name.contains("gold")      ? "G"
-                        : name.contains("diamond")   ? "D"
-                        : name.contains("netherite") ? "N"
-                        : name.contains("elytra")    ? "E" : "?";
+                String tier = name.contains("leather")   ? "L"
+                        : name.contains("chain")         ? "Ch"
+                          : name.contains("iron")          ? "I"
+                            : name.contains("gold")          ? "G"
+                              : name.contains("diamond")       ? "D"
+                                : name.contains("netherite")     ? "N"
+                                  : name.contains("elytra")        ? "E" : "?";
                 String type = slot == EquipmentSlot.HEAD  ? "H"
-                        : slot == EquipmentSlot.CHEST ? "C"
-                        : slot == EquipmentSlot.LEGS  ? "L" : "B";
+                        : slot == EquipmentSlot.CHEST     ? "C"
+                          : slot == EquipmentSlot.LEGS      ? "L" : "B";
                 part = tier + type;
             }
 
@@ -239,7 +246,7 @@ public abstract class NumericHealthDisplayMixin<T extends Entity, S extends Enti
                 PlayerIndicatorConfig.armorTextHue,
                 PlayerIndicatorConfig.armorTextSaturation,
                 PlayerIndicatorConfig.armorTextBrightness,
-                poseStack, bufferSource, packedLight);
+                poseStack, collector, packedLight);
     }
 
     @Unique
