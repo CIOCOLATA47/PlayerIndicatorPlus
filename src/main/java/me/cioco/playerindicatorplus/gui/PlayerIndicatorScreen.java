@@ -32,8 +32,8 @@ public class PlayerIndicatorScreen extends Screen {
     private Button doneButton;
     private Button globalToggleButton;
 
-    private final int[] sectionY    = new int[4];
-    private final int[] sectionRows = new int[4];
+    private final int[] sectionY    = new int[6];
+    private final int[] sectionRows = new int[6];
 
     public PlayerIndicatorScreen(Screen parent) {
         super(Component.literal("PlayerIndicatorPlus Configuration"));
@@ -66,6 +66,26 @@ public class PlayerIndicatorScreen extends Screen {
         y += SPACING_Y + SECTION_GAP;
 
         sectionY[1] = y; sectionRows[1] = 3;
+        addToggleButton(leftCol,  y, "Show Hearts", "Display hearts using Minecraft textures.", PlayerIndicatorConfig.showHearts, v -> PlayerIndicatorConfig.showHearts = v);
+        addSlider(rightCol, y, 170, "Heart Size", PlayerIndicatorConfig.heartSize, 0.01f, 0.08f, v -> PlayerIndicatorConfig.heartSize = v);
+        y += SPACING_Y;
+        addSlider(leftCol,  y, 170, "Height", PlayerIndicatorConfig.heartHeightOffset, 0.5f, 2.5f, v -> PlayerIndicatorConfig.heartHeightOffset = v);
+        addSlider(rightCol, y, 170, "Per Row", (float) PlayerIndicatorConfig.heartsPerRow, 5f, 20f, v -> PlayerIndicatorConfig.heartsPerRow = (int) Math.round(v));
+        y += SPACING_Y;
+        addToggleButton(leftCol, y, "Show Absorption", "Display absorption heart count.", PlayerIndicatorConfig.showAbsorptionCount, v -> PlayerIndicatorConfig.showAbsorptionCount = v);
+        y += SPACING_Y + SECTION_GAP;
+
+        sectionY[2] = y; sectionRows[2] = 4;
+        addToggleButton(leftCol,  y, "Show Armor Bars", "Display armor bars using Minecraft textures.", PlayerIndicatorConfig.showArmorBars, v -> PlayerIndicatorConfig.showArmorBars = v);
+        addSlider(rightCol, y, 170, "Bar Size", PlayerIndicatorConfig.armorBarSize, 0.01f, 0.08f, v -> PlayerIndicatorConfig.armorBarSize = v);
+        y += SPACING_Y;
+        addSlider(leftCol,  y, 170, "Height Offset", PlayerIndicatorConfig.armorBarHeightOffset, 0.2f, 1.5f, v -> PlayerIndicatorConfig.armorBarHeightOffset = v);
+        addToggleButton(rightCol, y, "Show Durability", "Show armor durability percentage.", PlayerIndicatorConfig.showArmorDurability, v -> PlayerIndicatorConfig.showArmorDurability = v);
+        y += SPACING_Y;
+        addToggleButton(leftCol, y, "Show Tiers", "Show armor tier icons (D,H,C,L,B).", PlayerIndicatorConfig.showArmorTiers, v -> PlayerIndicatorConfig.showArmorTiers = v);
+        y += SPACING_Y + SECTION_GAP;
+
+        sectionY[3] = y; sectionRows[3] = 3;
         addToggleButton(leftCol,  y, "Show Percent", "Armor durability percentage.", PlayerIndicatorConfig.showArmorPercentages, v -> PlayerIndicatorConfig.showArmorPercentages = v);
         addToggleButton(rightCol, y, "Show Text",    "Armor type names.",            PlayerIndicatorConfig.showArmorText,        v -> PlayerIndicatorConfig.showArmorText = v);
         y += SPACING_Y;
@@ -76,7 +96,7 @@ public class PlayerIndicatorScreen extends Screen {
         addSlider(rightCol, y, 170, "Saturation", PlayerIndicatorConfig.armorTextSaturation, 0f, 1f,   v -> PlayerIndicatorConfig.armorTextSaturation = v);
         y += SPACING_Y + SECTION_GAP;
 
-        sectionY[2] = y; sectionRows[2] = 2;
+        sectionY[4] = y; sectionRows[4] = 2;
         addToggleButton(leftCol,  y, "Main Hand", "Show held item.",    PlayerIndicatorConfig.showMainHand, v -> PlayerIndicatorConfig.showMainHand = v);
         addToggleButton(rightCol, y, "Off Hand",  "Show offhand item.", PlayerIndicatorConfig.showOffHand,  v -> PlayerIndicatorConfig.showOffHand = v);
         y += SPACING_Y;
@@ -84,7 +104,7 @@ public class PlayerIndicatorScreen extends Screen {
         addSlider(rightCol, y, 170, "Text Size", PlayerIndicatorConfig.equipmentTextSize,        0.01f, 0.05f, v -> PlayerIndicatorConfig.equipmentTextSize = v);
         y += SPACING_Y + SECTION_GAP;
 
-        sectionY[3] = y; sectionRows[3] = 4;
+        sectionY[5] = y; sectionRows[5] = 4;
         addToggleButton(leftCol,  y, "Show Ping",     "Latency display.",     PlayerIndicatorConfig.showPing,     v -> PlayerIndicatorConfig.showPing = v);
         addToggleButton(rightCol, y, "Show Distance", "Distance in blocks.",  PlayerIndicatorConfig.showDistance, v -> PlayerIndicatorConfig.showDistance = v);
         y += SPACING_Y;
@@ -134,7 +154,7 @@ public class PlayerIndicatorScreen extends Screen {
 
         ctx.enableScissor(0, 40, width, height - 70);
 
-        String[] titles = {"Health", "Armor", "Equipment", "Connection & Info"};
+        String[] titles = {"Health", "Hearts", "Armor Bars", "Armor Info", "Equipment", "Connection & Info"};
         for (int i = 0; i < sectionY.length; i++) {
             renderSectionGroup(ctx, panelX, sectionY[i] - scrollOffset, panelW, sectionRows[i], titles[i]);
         }

@@ -4,7 +4,7 @@
   "package": "me.cioco.playerindicatorplus.mixin",
   "compatibilityLevel": "JAVA_17",
   "client": [
-    "NumericHealthDisplayMixin"
+    "PlayerIndicatorMixin"
   ],
   "injectors": {
     "defaultRequire": 1
