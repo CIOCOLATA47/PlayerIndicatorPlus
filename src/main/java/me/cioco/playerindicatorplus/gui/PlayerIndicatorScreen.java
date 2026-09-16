@@ -1,6 +1,5 @@
 package me.cioco.playerindicatorplus.gui;
 
-import me.cioco.playerindicatorplus.Main;
 import me.cioco.playerindicatorplus.config.PlayerIndicatorConfig;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

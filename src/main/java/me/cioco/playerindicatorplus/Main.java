@@ -10,13 +10,15 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
 
 public class Main implements ModInitializer {
+
     public static final PlayerIndicatorConfig config = new PlayerIndicatorConfig();
 
     public static final KeyMapping.Category CATEGORY_PLAYERINDICATOR =
-            KeyMapping.Category.register(Identifier.fromNamespaceAndPath("playerindicator", "key_category"));
+            KeyMapping.Category.register(
+                    Identifier.fromNamespaceAndPath("playerindicatorplus", "key_category")
+            );
 
     public static KeyMapping toggleKeyBinding;
     public static KeyMapping guiKeyBinding;
@@ -27,22 +29,22 @@ public class Main implements ModInitializer {
 
         toggleKeyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.playerindicator.toggle",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_UNKNOWN,
+                InputConstants.Type.KEYBOARD,
+                InputConstants.KEY_H,
                 CATEGORY_PLAYERINDICATOR
         ));
 
         guiKeyBinding = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.playerindicator.open_gui",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_UNKNOWN,
+                InputConstants.Type.KEYBOARD,
+                InputConstants.KEY_J,
                 CATEGORY_PLAYERINDICATOR
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player == null) return;
 
-            if (toggleKeyBinding.consumeClick()) {
+            if (toggleKeyBinding != null && toggleKeyBinding.consumeClick()) {
                 PlayerIndicatorConfig.toggled = !PlayerIndicatorConfig.toggled;
                 config.saveConfiguration();
 
@@ -56,7 +58,7 @@ public class Main implements ModInitializer {
                 client.player.sendSystemMessage(status);
             }
 
-            if (guiKeyBinding.consumeClick()) {
+            if (guiKeyBinding != null && guiKeyBinding.consumeClick()) {
                 client.setScreenAndShow(new PlayerIndicatorScreen(client.gui.screen()));
             }
         });

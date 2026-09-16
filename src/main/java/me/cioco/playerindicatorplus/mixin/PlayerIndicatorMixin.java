@@ -24,6 +24,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 
 import org.joml.Matrix4f;
@@ -81,7 +82,7 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
     private void renderAllIndicators(
             S state,
             PoseStack poseStack,
-            SubmitNodeCollector collector,
+            SubmitNodeCollector submitNodeCollector,
             CameraRenderState camera,
             CallbackInfo ci
     ) {
@@ -107,27 +108,27 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
         int packedLight = state.lightCoords;
 
         if (PlayerIndicatorConfig.showPing || PlayerIndicatorConfig.showDistance) {
-            renderInfoLine(player, poseStack, collector, packedLight);
+            renderInfoLine(player, poseStack, submitNodeCollector, packedLight);
         }
 
         if (PlayerIndicatorConfig.showMainHand || PlayerIndicatorConfig.showOffHand) {
-            renderEquipment(player, poseStack, collector, packedLight);
+            renderEquipment(player, poseStack, submitNodeCollector, packedLight);
         }
 
         if (PlayerIndicatorConfig.showHealthNumbers) {
-            displayHealthAbovePlayer(player, poseStack, collector, packedLight);
+            displayHealthAbovePlayer(player, poseStack, submitNodeCollector, packedLight);
         }
 
         if (PlayerIndicatorConfig.showArmorPercentages || PlayerIndicatorConfig.showArmorText) {
-            renderArmorPercentagesAbovePlayer(player, poseStack, collector, packedLight);
+            renderArmorPercentagesAbovePlayer(player, poseStack, submitNodeCollector, packedLight);
         }
 
         if (PlayerIndicatorConfig.showHearts) {
-            renderHeartsAbovePlayer(player, poseStack, collector, packedLight);
+            renderHeartsAbovePlayer(player, poseStack, submitNodeCollector, packedLight);
         }
 
         if (PlayerIndicatorConfig.showArmorBars) {
-            renderArmorBarAbovePlayer(player, poseStack, collector, packedLight);
+            renderArmorBarAbovePlayer(player, poseStack, submitNodeCollector, packedLight);
         }
     }
 
@@ -147,11 +148,7 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
             }
         }
 
-        if (player.isInvisible() && !PlayerIndicatorConfig.showInvisiblePlayers) {
-            return true;
-        }
-
-        return false;
+        return player.isInvisible() && !PlayerIndicatorConfig.showInvisiblePlayers;
     }
 
     @Unique
@@ -174,14 +171,14 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
         poseStack.translate(0.0F, player.getBbHeight() + yOffsetValue, 0.0F);
 
         var camera = mc.gameRenderer.mainCamera();
-        poseStack.mulPose(Axis.YP.rotationDegrees(-camera.yRot()));
-        poseStack.mulPose(Axis.XP.rotationDegrees(camera.xRot()));
+        poseStack.rotateDegrees(Axis.YP, -camera.yRot());
+        poseStack.rotateDegrees(Axis.XP, camera.xRot());
         poseStack.scale(-size, -size, size);
 
         int color = 0xFF000000 | Color.HSBtoRGB(h / 360.0F, s, b);
         float x = -font.width(text) / 2.0F;
         Component component = Component.literal(text);
-        var visualOrder = font.split(component, Integer.MAX_VALUE).get(0);
+        var visualOrder = font.split(component, Integer.MAX_VALUE).getFirst();
 
         collector.submitText(
                 poseStack,
@@ -344,6 +341,18 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
     }
 
     @Unique
+    private String extractArmorTier(String name) {
+        if (name.contains("leather")) return "L";
+        if (name.contains("chain")) return "Ch";
+        if (name.contains("iron")) return "I";
+        if (name.contains("gold")) return "G";
+        if (name.contains("diamond")) return "D";
+        if (name.contains("netherite")) return "N";
+        if (name.contains("elytra")) return "E";
+        return "?";
+    }
+
+    @Unique
     private void renderArmorPercentagesAbovePlayer(
             Player player,
             PoseStack poseStack,
@@ -371,14 +380,7 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
             String part = "";
             if (PlayerIndicatorConfig.showArmorText) {
                 String name = stack.getItem().getDescriptionId().toLowerCase();
-                String tier = name.contains("leather") ? "L"
-                        : name.contains("chain") ? "Ch"
-                          : name.contains("iron") ? "I"
-                            : name.contains("gold") ? "G"
-                              : name.contains("diamond") ? "D"
-                                : name.contains("netherite") ? "N"
-                                  : name.contains("elytra") ? "E"
-                                    : "?";
+                String tier = extractArmorTier(name);
 
                 String type = slot == EquipmentSlot.HEAD ? "H"
                         : slot == EquipmentSlot.CHEST ? "C"
@@ -467,8 +469,8 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
         poseStack.translate(0.0F, player.getBbHeight() + PlayerIndicatorConfig.heartHeightOffset, 0.0F);
 
         var camera = Minecraft.getInstance().gameRenderer.mainCamera();
-        poseStack.mulPose(Axis.YP.rotationDegrees(-camera.yRot()));
-        poseStack.mulPose(Axis.XP.rotationDegrees(camera.xRot()));
+        poseStack.rotateDegrees(Axis.YP, -camera.yRot());
+        poseStack.rotateDegrees(Axis.XP, camera.xRot());
 
         float scale = Math.max(0.005F, PlayerIndicatorConfig.heartSize);
         poseStack.scale(-scale, -scale, scale);
@@ -493,9 +495,7 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
                 } else {
                     fillPath = "minecraft:hud/heart/full";
                 }
-            } else if (heart < normalHearts) {
-                fillPath = null;
-            } else {
+            } else if (heart >= normalHearts) {
                 int absIndex = heart - normalHearts;
                 int absRedHearts = (int) Math.ceil(absorptionPoints / 2.0F);
                 if (absIndex < absRedHearts) {
@@ -529,19 +529,20 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
             int packedLight
     ) {
         int armorPoints = player.getArmorValue();
-        if (armorPoints <= 0) {
+
+        if (armorPoints <= 0 && !hasAnyEquippedArmor(player)) {
             return;
         }
 
         final int ARMOR_ICONS = 10;
-        final float ICON_PIXELS = 8.0F;
+        final float ICON_PIXELS = 9.0F;
 
         poseStack.pushPose();
         poseStack.translate(0.0F, player.getBbHeight() + PlayerIndicatorConfig.armorBarHeightOffset, 0.0F);
 
         var camera = Minecraft.getInstance().gameRenderer.mainCamera();
-        poseStack.mulPose(Axis.YP.rotationDegrees(-camera.yRot()));
-        poseStack.mulPose(Axis.XP.rotationDegrees(camera.xRot()));
+
+        poseStack.rotate(camera.rotation());
 
         float scale = Math.max(0.005F, PlayerIndicatorConfig.armorBarSize);
         poseStack.scale(-scale, -scale, scale);
@@ -610,14 +611,13 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
         collector.submitCustomGeometry(
                 poseStack,
                 renderType,
-                (pose, vertexConsumer) -> {
+                (unusedPose, vertexConsumer) -> {
                     if (container != null) {
                         addSpriteQuad(
                                 vertexConsumer,
                                 model,
                                 x,
                                 y,
-                                0.0F,
                                 SIZE,
                                 container.getU0(),
                                 container.getV0(),
@@ -633,7 +633,6 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
                                 model,
                                 x,
                                 y,
-                                0.0F,
                                 SIZE,
                                 fill.getU0(),
                                 fill.getV0(),
@@ -648,11 +647,10 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
 
     @Unique
     private static void addSpriteQuad(
-            com.mojang.blaze3d.vertex.VertexConsumer vertexConsumer,
+            VertexConsumer vertexConsumer,
             Matrix4f model,
             float x,
             float y,
-            float z,
             float size,
             float u0,
             float v0,
@@ -660,6 +658,8 @@ public abstract class PlayerIndicatorMixin<T extends Entity, S extends EntityRen
             float v1,
             int packedLight
     ) {
+        float z = 0.0F;
+
         vertexConsumer.addVertex(model, x, y, z)
                 .setColor(255, 255, 255, 255)
                 .setUv(u0, v0)
